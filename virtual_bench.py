@@ -105,14 +105,74 @@ class VirtualBench:
         try:
             self.mso.configure_analog_channel(channel, True, vertical_range, vertical_offset, 1, 0)  # 1x probe, DC coupling
             self.mso.configure_timing(sample_rate, duration_sec, 1e-9, 0)  # 0 = REAL_TIME
-            # Query actual timing to see what was set
-            actual_sample_rate, actual_acq_time, _, _ = self.mso.query_timing()
-            print(f"Actual sample_rate: {actual_sample_rate} Hz, acquisition time: {actual_acq_time} s, total samples: {int(actual_sample_rate * actual_acq_time)}")
+            # actual_sample_rate, actual_acq_time, _, _ = self.mso.query_timing()
+            # print(f"Actual sample_rate: {actual_sample_rate} Hz, acquisition time: {actual_acq_time} s, total samples: {int(actual_sample_rate * actual_acq_time)}")
             self.mso.configure_immediate_trigger()
             self.mso.run()
             analog_data, analog_data_stride, analog_t0, *_ = self.mso.read_analog_digital_u64()
             print(f"Returned analog_data_stride: {analog_data_stride}, number of samples: {len(analog_data)}")
             return list(analog_data)
+        except Exception as e:
+            print(f"Error during MSO acquisition: {e}")
+            raise
+    
+    def record_ch2_signal_mso(self, duration_sec, sample_rate=100000.0, vertical_range=5.0, vertical_offset=0.0):
+        """
+        Record the analog signal on CH1 using the MSO (oscilloscope).
+        :param duration_sec: Time in seconds to record the signal.
+        :param sample_rate: Sampling rate in Hz (default: 1000 Hz).
+        :param vertical_range: Vertical range in volts (default: 5V).
+        :param vertical_offset: Vertical offset in volts (default: 0V).
+        :return: List of measured voltage values.
+        """
+        if self.mso is None:
+            raise Exception("MSO not initialized. Call setup() first.")
+
+        channel = self.device_name + "/mso/2"
+        print(f"Requesting channel: {channel}")
+        print(f"Requested sample_rate: {sample_rate} Hz, duration: {duration_sec} s, total samples: {int(sample_rate * duration_sec)}")
+        try:
+            self.mso.configure_analog_channel(channel, True, vertical_range, vertical_offset, 1, 0)  # 1x probe, DC coupling
+            self.mso.configure_timing(sample_rate, duration_sec, 1e-9, 0)  # 0 = REAL_TIME
+            # actual_sample_rate, actual_acq_time, _, _ = self.mso.query_timing()
+            # print(f"Actual sample_rate: {actual_sample_rate} Hz, acquisition time: {actual_acq_time} s, total samples: {int(actual_sample_rate * actual_acq_time)}")
+            self.mso.configure_immediate_trigger()
+            self.mso.run()
+            analog_data, analog_data_stride, analog_t0, *_ = self.mso.read_analog_digital_u64()
+            print(f"Returned analog_data_stride: {analog_data_stride}, number of samples: {len(analog_data)}")
+            return list(analog_data)
+        except Exception as e:
+            print(f"Error during MSO acquisition: {e}")
+            raise
+        
+    def record_ch12_signal_mso(self, duration_sec, sample_rate=100000.0, vertical_range=5.0, vertical_offset=0.0):
+        """
+        Record the analog signals on CH1 and CH2 using the MSO (oscilloscope).
+        :param duration_sec: Time in seconds to record the signal.
+        :param sample_rate: Sampling rate in Hz (default: 100000 Hz).
+        :param vertical_range: Vertical range in volts (default: 5V).
+        :param vertical_offset: Vertical offset in volts (default: 0V).
+        :return: [signal_1, signal_2] as lists of measured voltage values.
+        """
+        if self.mso is None:
+            raise Exception("MSO not initialized. Call setup() first.")
+
+        channel1 = self.device_name + "/mso/1"
+        channel2 = self.device_name + "/mso/2"
+        print(f"Requesting channels: {channel1}, {channel2}")
+        print(f"Requested sample_rate: {sample_rate} Hz, duration: {duration_sec} s, total samples: {int(sample_rate * duration_sec)}")
+        try:
+            self.mso.configure_analog_channel(channel1, True, vertical_range, vertical_offset, 1, 0)  # 1x probe, DC coupling
+            self.mso.configure_analog_channel(channel2, True, vertical_range, vertical_offset, 1, 0)  # 1x probe, DC coupling
+            self.mso.configure_timing(sample_rate, duration_sec, 1e-9, 0)  # 0 = REAL_TIME
+            self.mso.configure_immediate_trigger()
+            self.mso.run()
+            analog_data, analog_data_stride, analog_t0, *_ = self.mso.read_analog_digital_u64()
+            print(f"Returned analog_data_stride: {analog_data_stride}, number of samples: {len(analog_data)}")
+            # Split the interleaved analog_data into two separate lists
+            signal_1 = analog_data[0::analog_data_stride]
+            signal_2 = analog_data[1::analog_data_stride]
+            return [list(signal_1), list(signal_2)]
         except Exception as e:
             print(f"Error during MSO acquisition: {e}")
             raise
